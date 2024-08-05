@@ -29,6 +29,48 @@ import 'ua.dart';
 import 'uri.dart';
 import 'utils.dart' as utils;
 
+// for Comdesk
+const List<String> BASIC_HEADER_KEYS = <String>[
+  'CALLER_CHANNEL',
+  'VARIABLES_KEY',
+  'EVENT_NUMBER',
+  'SEQUENCE_ID',
+  'CIRCUIT_NUMBER',
+  'CIRCUIT_TITLE',
+  'GROUP_NAME',
+  'GROUP_NUMBER',
+  'QUEUE_LOCAL_CHANEL',
+];
+
+// for Comdesk
+const List<String> VFORM_USER_CALL_HEADER_KEYS = <String>[
+  'TARGET_INFO',
+  'MANAGER_KEY',
+  'CIRCUIT_KEY',
+  'CIRCUIT_NAME',
+  'USER_KEY',
+  'USER_NAME',
+  'USER_NUMBER',
+  'NUMBER_FOR_YOU',
+  'RECORD_FILE_NAME',
+  'URLS',
+  'DIAL_TIMEOUT_FOR_YOU',
+];
+
+// for Comdesk
+enum WEBHOOK_EVENT {
+  VFORM_USER_CALL_START;
+}
+
+extension WEBHOOK_EVENT_EXT on WEBHOOK_EVENT {
+  String get value {
+    switch(this) {
+      case WEBHOOK_EVENT.VFORM_USER_CALL_START:
+        return '331';
+    }
+  }
+}
+
 class C {
   // RTCSession states.
   static const int STATUS_NULL = 0;
@@ -152,6 +194,10 @@ class RTCSession extends EventManager implements Owner {
 
   Future<void> dtmfFuture = (Completer<void>()..complete()).future;
 
+// TODO: RtcSessionExtension に実装する
+  // for Comdesk
+  String? _subscribeSocketId;
+
   @override
   late Function(IncomingRequest) receiveRequest;
 
@@ -274,6 +320,11 @@ class RTCSession extends EventManager implements Owner {
     //  throw Exceptions.NotSupportedError('WebRTC not supported');
     //}
 
+    // Prepare target for Comdesk
+    if (_subscribeSocketId != null) {
+      target = '$target#$_subscribeSocketId#';
+    }
+
     // Check target validity.
     target = _ua.normalizeTarget(target);
     if (target == null) {
@@ -322,6 +373,138 @@ class RTCSession extends EventManager implements Owner {
 
     _request =
         InitialOutgoingInviteRequest(target, _ua, requestParams, extraHeaders);
+
+    _id = _request.call_id + _from_tag;
+
+    // Create a RTCPeerConnection instance.
+    await _createRTCConnection(pcConfig, rtcConstraints);
+
+    // Set internal properties.
+    _direction = 'outgoing';
+    _local_identity = _request.from;
+    _remote_identity = _request.to;
+
+    // User explicitly provided a newRTCSession callback for this session.
+    if (initCallback != null) {
+      initCallback(this);
+    }
+
+    _newRTCSession('local', _request);
+    await _sendInitialRequest(
+        pcConfig, mediaConstraints, rtcOfferConstraints, mediaStream);
+  }
+
+  // TODO: for Comdesk
+  void connectBridge(dynamic target,
+      [Map<String, dynamic>? options,
+      InitSuccessCallback? initCallback]) async {
+    logger.d('connectBridge()');
+
+    options = options ?? <String, dynamic>{};
+    dynamic originalTarget = target;
+    EventManager eventHandlers = options['eventHandlers'] ?? EventManager();
+    List<dynamic> extraHeaders = utils.cloneArray(options['extraHeaders']);
+    Map<String, dynamic> mediaConstraints = options['mediaConstraints'] ??
+        <String, dynamic>{'audio': true, 'video': true};
+    MediaStream? mediaStream = options['mediaStream'];
+    Map<String, dynamic> pcConfig =
+        options['pcConfig'] ?? <String, dynamic>{'iceServers': <dynamic>[]};
+    Map<String, dynamic> rtcConstraints =
+        options['rtcConstraints'] ?? <String, dynamic>{};
+    Map<String, dynamic> rtcOfferConstraints =
+        options['rtcOfferConstraints'] ?? <String, dynamic>{};
+    _rtcOfferConstraints = rtcOfferConstraints;
+    _rtcAnswerConstraints =
+        options['rtcAnswerConstraints'] ?? <String, dynamic>{};
+    data = options['data'] ?? data;
+
+    // Check Session Status.
+    if (_status != C.STATUS_NULL) {
+      throw Exceptions.InvalidStateError(_status);
+    }
+
+    // Check WebRTC support.
+    // TODO(cloudwebrtc): change support for flutter-webrtc
+    //if (RTCPeerConnection == null)
+    //{
+    //  throw Exceptions.NotSupportedError('WebRTC not supported');
+    //}
+
+    // Prepare target for Comdesk
+    if (_subscribeSocketId != null) {
+      target = '$target#$_subscribeSocketId#';
+    }
+
+    // Check target validity.
+    target = _ua.normalizeTarget(target);
+    if (target == null) {
+      throw Exceptions.TypeError('Invalid target: $originalTarget');
+    }
+
+    // Session Timers.
+    if (_sessionTimers.enabled) {
+      if (utils.isDecimal(options['sessionTimersExpires'])) {
+        if (options['sessionTimersExpires'] >= DartSIP_C.MIN_SESSION_EXPIRES) {
+          _sessionTimers.defaultExpires = options['sessionTimersExpires'];
+        } else {
+          _sessionTimers.defaultExpires = DartSIP_C.SESSION_EXPIRES;
+        }
+      }
+    }
+
+    // Set event handlers.
+    addAllEventHandlers(eventHandlers);
+
+    // Session parameter initialization.
+    _from_tag = utils.newTag();
+
+    // Set anonymous property.
+    bool anonymous = options['anonymous'] ?? false;
+    Map<String, dynamic> requestParams = <String, dynamic>{
+      'from_tag': _from_tag
+    };
+    _ua.contact!.anonymous = anonymous;
+    _ua.contact!.outbound = true;
+    _contact = _ua.contact.toString();
+
+    if (anonymous) {
+      requestParams['from_display_name'] = 'Anonymous';
+      requestParams['from_uri'] = URI('sip', 'anonymous', 'anonymous.invalid');
+      extraHeaders
+          .add('P-Preferred-Identity: ${_ua.configuration.uri.toString()}');
+      extraHeaders.add('Privacy: id');
+    }
+
+    extraHeaders.add('Contact: $_contact');
+    extraHeaders.add('Content-Type: application/sdp');
+    if (_sessionTimers.enabled) {
+      extraHeaders.add('Session-Expires: ${_sessionTimers.defaultExpires}');
+    }
+
+    // for Comdesk
+    String? eventNumber = request.getHeader('EVENT_NUMBER') as String?;
+    BASIC_HEADER_KEYS.forEach((String key) {
+      dynamic value = request.getHeader(key);
+      if (value != null) {
+        extraHeaders.add('$key: $value');
+      }
+    });
+
+    // for Comdesk
+    if (eventNumber != null && eventNumber == WEBHOOK_EVENT.VFORM_USER_CALL_START.value) {
+      VFORM_USER_CALL_HEADER_KEYS.forEach((String key) {
+        dynamic value = request.getHeader(key);
+        if (value != null) {
+          extraHeaders.add('$key: $value');
+        }
+      });
+    }
+
+    // for Comdesk
+    // _request =
+    //     InitialOutgoingInviteRequest(target, _ua, requestParams, extraHeaders);
+    _request =
+        InitialBridgeInviteRequest(target, _ua, requestParams, extraHeaders);
 
     _id = _request.call_id + _from_tag;
 

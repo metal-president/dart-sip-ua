@@ -484,6 +484,15 @@ class Call {
     _session.answer(options);
   }
 
+  // for Comdesk
+  void answerBridge(Map<String, dynamic> options, {MediaStream? mediaStream = null}) {
+    assert(_session != null, 'ERROR(answerBridge): rtc session is invalid!');
+    if (mediaStream != null) {
+      options['mediaStream'] = mediaStream;
+    }
+    _session.connectBridge('bridge', options);
+  }
+
   void refer(String target) {
     assert(_session != null, 'ERROR(refer): rtc session is invalid!');
     ReferSubscriber refer = _session.refer(target)!;
