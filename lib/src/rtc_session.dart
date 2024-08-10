@@ -59,7 +59,7 @@ const List<String> VFORM_USER_CALL_HEADER_KEYS = <String>[
 
 // for Comdesk
 enum WEBHOOK_EVENT {
-  VFORM_USER_CALL_START;
+  VFORM_USER_CALL_START
 }
 
 extension WEBHOOK_EVENT_EXT on WEBHOOK_EVENT {

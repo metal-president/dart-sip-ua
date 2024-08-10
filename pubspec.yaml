@@ -19,7 +19,6 @@ dependencies:
   text: ^0.2.0
   uuid: ^4.2.1
 
-
 dev_dependencies:
   import_sorter: ^4.6.0
   lints: ^3.0.0
