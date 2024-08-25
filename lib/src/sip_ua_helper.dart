@@ -164,7 +164,8 @@ class SIPUAHelper extends EventManager {
         uaSettings.sessionTimersRefreshMethod;
     _settings.instance_id = uaSettings.instanceId;
     _settings.registrar_server = uaSettings.registrarServer;
-    _settings.contact_uri = uaSettings.contact_uri;
+// for Comdesk
+    // _settings.contact_uri = uaSettings.contact_uri;
 
     try {
       _ua = UA(_settings);
