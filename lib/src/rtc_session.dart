@@ -57,14 +57,15 @@ const List<String> VFORM_USER_CALL_HEADER_KEYS = <String>[
   'DIAL_TIMEOUT_FOR_YOU',
 ];
 
+const String EVENT_HEAD = 'MESH_EVENT_';
+const String EXTRA_HEADERS_HEAD = 'MESH_HEADER_';
+
 // for Comdesk
-enum WEBHOOK_EVENT {
-  VFORM_USER_CALL_START
-}
+enum WEBHOOK_EVENT { VFORM_USER_CALL_START }
 
 extension WEBHOOK_EVENT_EXT on WEBHOOK_EVENT {
   String get value {
-    switch(this) {
+    switch (this) {
       case WEBHOOK_EVENT.VFORM_USER_CALL_START:
         return '331';
     }
@@ -365,7 +366,7 @@ class RTCSession extends EventManager implements Owner {
       requestParams['from_display_name'] = options['from_display_name'] ?? '';
       requestParams['from_uri'] = URI.parse(options['from_uri']);
       extraHeaders
-        .add('P-Preferred-Identity: ${_ua.configuration.uri.toString()}');
+          .add('P-Preferred-Identity: ${_ua.configuration.uri.toString()}');
     }
 
     if (anonymous) {
@@ -493,23 +494,39 @@ class RTCSession extends EventManager implements Owner {
     }
 
     // for Comdesk
+    Map<String, dynamic> comdeskExtraHeaders = <String, dynamic>{};
     String? eventNumber = request.getHeader('EVENT_NUMBER') as String?;
     BASIC_HEADER_KEYS.forEach((String key) {
       dynamic value = request.getHeader(key);
       if (value != null) {
-        extraHeaders.add('$key: $value');
+        comdeskExtraHeaders[key] = value;
       }
     });
 
-    // for Comdesk
-    if (eventNumber != null && eventNumber == WEBHOOK_EVENT.VFORM_USER_CALL_START.value) {
+    if (eventNumber != null &&
+        eventNumber == WEBHOOK_EVENT.VFORM_USER_CALL_START.value) {
       VFORM_USER_CALL_HEADER_KEYS.forEach((String key) {
         dynamic value = request.getHeader(key);
         if (value != null) {
-          extraHeaders.add('$key: $value');
+          comdeskExtraHeaders[key] = value;
         }
       });
     }
+
+    final String headerKeysKey = '${EXTRA_HEADERS_HEAD}keys';
+    List<String> keysArr = <String>[];
+    keysArr.add(headerKeysKey);
+    comdeskExtraHeaders.forEach((String key, dynamic value) {
+      String headerKey = '$EXTRA_HEADERS_HEAD$key';
+      keysArr.add(headerKey);
+      List<dynamic>? values = value as List<dynamic>?;
+      if (values != null) {
+        extraHeaders.add('$headerKey : ${jsonEncode(values)}');
+      } else {
+        extraHeaders.add('$headerKey : $value');
+      }
+    });
+    extraHeaders.add('$headerKeysKey : ${jsonEncode(keysArr)}');
 
     // for Comdesk
     // _request =
@@ -3120,7 +3137,7 @@ class RTCSession extends EventManager implements Owner {
   }
 
   /// SDP offers may contain text media channels. e.g. Older clients using linphone.
-  /// 
+  ///
   /// WebRTC does not support text media channels, so remove them.
   String? _sdpOfferToWebRTC(String? sdpInput) {
     if (sdpInput == null) {
