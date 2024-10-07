@@ -195,10 +195,6 @@ class RTCSession extends EventManager implements Owner {
 
   Future<void> dtmfFuture = (Completer<void>()..complete()).future;
 
-// TODO: RtcSessionExtension に実装する
-  // for Comdesk
-  String? _subscribeSocketId;
-
   @override
   late Function(IncomingRequest) receiveRequest;
 
@@ -322,11 +318,6 @@ class RTCSession extends EventManager implements Owner {
     //  throw Exceptions.NotSupportedError('WebRTC not supported');
     //}
 
-    // Prepare target for Comdesk
-    if (_subscribeSocketId != null) {
-      target = '$target#$_subscribeSocketId#';
-    }
-
     // Check target validity.
     target = _ua.normalizeTarget(target);
     if (target == null) {
@@ -406,7 +397,7 @@ class RTCSession extends EventManager implements Owner {
         pcConfig, mediaConstraints, rtcOfferConstraints, mediaStream);
   }
 
-  // TODO: for Comdesk
+  // for Comdesk
   void connectBridge(dynamic target,
       [Map<String, dynamic>? options,
       InitSuccessCallback? initCallback]) async {
@@ -429,6 +420,12 @@ class RTCSession extends EventManager implements Owner {
     _rtcAnswerConstraints =
         options['rtcAnswerConstraints'] ?? <String, dynamic>{};
     data = options['data'] ?? data;
+    data?['video'] = !(options['mediaConstraints']['video'] == false);
+
+    // Check target.
+    if (target == null) {
+      throw Exceptions.TypeError('Not enough arguments');
+    }
 
     // Check Session Status.
     if (_status != C.STATUS_NULL) {
@@ -441,11 +438,6 @@ class RTCSession extends EventManager implements Owner {
     //{
     //  throw Exceptions.NotSupportedError('WebRTC not supported');
     //}
-
-    // Prepare target for Comdesk
-    if (_subscribeSocketId != null) {
-      target = '$target#$_subscribeSocketId#';
-    }
 
     // Check target validity.
     target = _ua.normalizeTarget(target);
@@ -478,6 +470,16 @@ class RTCSession extends EventManager implements Owner {
     _ua.contact!.anonymous = anonymous;
     _ua.contact!.outbound = true;
     _contact = _ua.contact.toString();
+
+    bool isFromUriOptionPresent = options['from_uri'] != null;
+
+    //set from_uri and from_display_name if present
+    if (isFromUriOptionPresent) {
+      requestParams['from_display_name'] = options['from_display_name'] ?? '';
+      requestParams['from_uri'] = URI.parse(options['from_uri']);
+      extraHeaders
+          .add('P-Preferred-Identity: ${_ua.configuration.uri.toString()}');
+    }
 
     if (anonymous) {
       requestParams['from_display_name'] = 'Anonymous';

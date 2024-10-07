@@ -256,6 +256,22 @@ class UA extends EventManager {
   }
 
   /**
+   * Make an answar with bridge-invite.
+   *
+   * -param {String} target
+   * -param {Object} [options]
+   *
+   * -throws {TypeError}
+   *
+   */
+  RTCSession callBridge(String target, Map<String, dynamic> options) {
+    logger.d('callBridge()');
+    RTCSession session = RTCSession(this);
+    session.connectBridge(target, options);
+    return session;
+  }
+
+  /**
    * Send a message.
    *
    * -param {String} target

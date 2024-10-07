@@ -88,11 +88,13 @@ class SIPUAHelper extends EventManager {
     }
   }
 
-  Future<bool> call(String target,
-      {bool voiceOnly = false,
-      MediaStream? mediaStream,
-      List<String>? headers,
-      Map<String, dynamic>? customOptions}) async {
+  Future<bool> call(
+    String target, {
+    bool voiceOnly = false,
+    MediaStream? mediaStream,
+    List<String>? headers,
+    Map<String, dynamic>? customOptions,
+  }) async {
     if (_ua != null && _ua!.isConnected()) {
       Map<String, dynamic> options = buildCallOptions(voiceOnly);
 
@@ -112,6 +114,29 @@ class SIPUAHelper extends EventManager {
           stackTrace: StackTraceNJ());
     }
     return false;
+  }
+
+  // for Comdesk
+  Future<bool> callBridge(
+    String target, {
+    bool voiceOnly = false,
+    MediaStream? mediaStream,
+    List<String>? headers,
+    Map<String, dynamic>? customOptions,
+  }) async {
+    Map<String, dynamic> options = buildCallOptions(voiceOnly);
+
+    if (customOptions != null) {
+      options = MapHelper.merge(options, customOptions);
+    }
+    if (mediaStream != null) {
+      options['mediaStream'] = mediaStream;
+    }
+    List<dynamic> extHeaders = options['extraHeaders'] as List<dynamic>;
+    extHeaders.addAll(headers ?? <String>[]);
+    options['extraHeaders'] = extHeaders;
+    RTCSession session = _ua!.callBridge(target, options);
+    return (session != null);
   }
 
   Call? findCall(String id) {
@@ -180,9 +205,9 @@ class SIPUAHelper extends EventManager {
     _settings.registrar_server = uaSettings.registrarServer;
 // for Comdesk
     // _settings.contact_uri = uaSettings.contact_uri;
-    _settings.connection_recovery_max_interval = 
+    _settings.connection_recovery_max_interval =
         uaSettings.connectionRecoveryMaxInterval;
-    _settings.connection_recovery_min_interval = 
+    _settings.connection_recovery_min_interval =
         uaSettings.connectionRecoveryMinInterval;
     _settings.terminateOnAudioMediaPortZero =
         uaSettings.terminateOnMediaPortZero;
@@ -538,15 +563,6 @@ class Call {
       options['mediaStream'] = mediaStream;
     }
     _session.answer(options);
-  }
-
-  // for Comdesk
-  void answerBridge(Map<String, dynamic> options, {MediaStream? mediaStream = null}) {
-    assert(_session != null, 'ERROR(answerBridge): rtc session is invalid!');
-    if (mediaStream != null) {
-      options['mediaStream'] = mediaStream;
-    }
-    _session.connectBridge('bridge', options);
   }
 
   void refer(String target) {
