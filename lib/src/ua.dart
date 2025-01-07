@@ -259,15 +259,18 @@ class UA extends EventManager {
    * Make an answar with bridge-invite.
    *
    * -param {String} target
+   * -param {String} sequenceId
+   * -param {String} userKey
    * -param {Object} [options]
    *
    * -throws {TypeError}
    *
    */
-  RTCSession callBridge(String target, Map<String, dynamic> options) {
+  RTCSession callBridge(String target, String sequenceId, String userKey,
+      Map<String, dynamic> options) {
     logger.d('callBridge()');
     RTCSession session = RTCSession(this);
-    session.connectBridge(target, options);
+    session.connectBridge(target, sequenceId, userKey, options);
     return session;
   }
 

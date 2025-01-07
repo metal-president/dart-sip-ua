@@ -16,7 +16,6 @@ import 'logger.dart';
 import 'message.dart';
 import 'rtc_session.dart';
 import 'rtc_session/refer_subscriber.dart';
-import 'sip_message.dart';
 import 'stack_trace_nj.dart';
 import 'subscriber.dart';
 import 'transports/web_socket.dart';
@@ -119,24 +118,33 @@ class SIPUAHelper extends EventManager {
   // for Comdesk
   Future<bool> callBridge(
     String target, {
+    required String sequenceId,
+    required String userKey,
     bool voiceOnly = false,
     MediaStream? mediaStream,
     List<String>? headers,
     Map<String, dynamic>? customOptions,
   }) async {
-    Map<String, dynamic> options = buildCallOptions(voiceOnly);
+    if (_ua != null && _ua!.isConnected()) {
+      Map<String, dynamic> options = buildCallOptions(voiceOnly);
 
-    if (customOptions != null) {
-      options = MapHelper.merge(options, customOptions);
+      if (customOptions != null) {
+        options = MapHelper.merge(options, customOptions);
+      }
+      if (mediaStream != null) {
+        options['mediaStream'] = mediaStream;
+      }
+      List<dynamic> extHeaders = options['extraHeaders'] as List<dynamic>;
+      extHeaders.addAll(headers ?? <String>[]);
+      options['extraHeaders'] = extHeaders;
+      RTCSession session =
+          _ua!.callBridge(target, sequenceId, userKey, options);
+      return (session != null);
+    } else {
+      logger.e('Not connected, you will need to register.',
+          stackTrace: StackTraceNJ());
     }
-    if (mediaStream != null) {
-      options['mediaStream'] = mediaStream;
-    }
-    List<dynamic> extHeaders = options['extraHeaders'] as List<dynamic>;
-    extHeaders.addAll(headers ?? <String>[]);
-    options['extraHeaders'] = extHeaders;
-    RTCSession session = _ua!.callBridge(target, options);
-    return (session != null);
+    return false;
   }
 
   Call? findCall(String id) {
@@ -154,7 +162,7 @@ class SIPUAHelper extends EventManager {
     call.renegotiate(options: finalOptions, useUpdate: useUpdate, done: done);
   }
 
-  Future<void> start(UaSettings uaSettings) async {
+  Future<bool> start(UaSettings uaSettings) async {
     if (_ua != null) {
       logger.w('UA instance already exist!, stopping UA and creating a one...');
       _ua!.stop();
@@ -284,9 +292,11 @@ class SIPUAHelper extends EventManager {
       });
 
       _ua!.start();
+      return true;
     } catch (e, s) {
       logger.e(e.toString(), error: e, stackTrace: s);
     }
+    return false;
   }
 
   /// Build the call options.
