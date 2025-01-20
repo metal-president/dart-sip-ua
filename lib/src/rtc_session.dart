@@ -277,7 +277,7 @@ class RTCSession extends EventManager implements Owner {
     return <String, dynamic>{'local': _localHold, 'remote': _remoteHold};
   }
 
-  void connect(dynamic target, dynamic sequenceId,
+  void connect(dynamic target,
       [Map<String, dynamic>? options,
       InitSuccessCallback? initCallback]) async {
     logger.d('connect()');
@@ -286,8 +286,6 @@ class RTCSession extends EventManager implements Owner {
     dynamic originalTarget = target;
     EventManager eventHandlers = options['eventHandlers'] ?? EventManager();
     List<dynamic> extraHeaders = utils.cloneArray(options['extraHeaders']);
-    extraHeaders.add('SEQUENCE_ID: $sequenceId');
-
     Map<String, dynamic> mediaConstraints = options['mediaConstraints'] ??
         <String, dynamic>{'audio': true, 'video': true};
     MediaStream? mediaStream = options['mediaStream'];
@@ -380,8 +378,8 @@ class RTCSession extends EventManager implements Owner {
     Map<String, dynamic> comdeskExtraHeaders = <String, dynamic>{};
     comdeskExtraHeaders['CALLER_CHANNEL'] = '';
     comdeskExtraHeaders['VARIABLES_KEY'] = '';
-    comdeskExtraHeaders['EVENT_NUMBER'] = 101;
-    comdeskExtraHeaders['SEQUENCE_ID'] = sequenceId;
+    comdeskExtraHeaders['EVENT_NUMBER'] = options['EVENT_NUMBER'];
+    comdeskExtraHeaders['SEQUENCE_ID'] = options['SEQUENCE_ID'];
     comdeskExtraHeaders['CIRCUIT_NUMBER'] = '';
     comdeskExtraHeaders['CIRCUIT_TITLE'] = '';
     comdeskExtraHeaders['GROUP_NAME'] = '';
