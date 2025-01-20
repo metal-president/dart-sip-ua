@@ -277,7 +277,7 @@ class RTCSession extends EventManager implements Owner {
     return <String, dynamic>{'local': _localHold, 'remote': _remoteHold};
   }
 
-  void connect(dynamic target,
+  void connect(dynamic target, dynamic sequenceId, dynamic userKey,
       [Map<String, dynamic>? options,
       InitSuccessCallback? initCallback]) async {
     logger.d('connect()');
@@ -286,6 +286,9 @@ class RTCSession extends EventManager implements Owner {
     dynamic originalTarget = target;
     EventManager eventHandlers = options['eventHandlers'] ?? EventManager();
     List<dynamic> extraHeaders = utils.cloneArray(options['extraHeaders']);
+    extraHeaders.add('SEQUENCE_ID: $sequenceId');
+    extraHeaders.add('USER_KEY: $userKey');
+
     Map<String, dynamic> mediaConstraints = options['mediaConstraints'] ??
         <String, dynamic>{'audio': true, 'video': true};
     MediaStream? mediaStream = options['mediaStream'];
@@ -373,6 +376,33 @@ class RTCSession extends EventManager implements Owner {
     if (_sessionTimers.enabled) {
       extraHeaders.add('Session-Expires: ${_sessionTimers.defaultExpires}');
     }
+
+    // for Comdesk
+    Map<String, dynamic> comdeskExtraHeaders = <String, dynamic>{};
+    comdeskExtraHeaders['CALLER_CHANNEL'] = '';
+    comdeskExtraHeaders['VARIABLES_KEY'] = '';
+    comdeskExtraHeaders['EVENT_NUMBER'] = 101;
+    comdeskExtraHeaders['SEQUENCE_ID'] = sequenceId;
+    comdeskExtraHeaders['CIRCUIT_NUMBER'] = '';
+    comdeskExtraHeaders['CIRCUIT_TITLE'] = '';
+    comdeskExtraHeaders['GROUP_NAME'] = '';
+    comdeskExtraHeaders['GROUP_NUMBER'] = '';
+    comdeskExtraHeaders['QUEUE_LOCAL_CHANEL'] = '';
+
+    final String headerKeysKey = '${EXTRA_HEADERS_HEAD}keys';
+    List<String> keysArr = <String>[];
+    keysArr.add(headerKeysKey);
+    comdeskExtraHeaders.forEach((String key, dynamic value) {
+      String headerKey = '$EXTRA_HEADERS_HEAD$key';
+      keysArr.add(headerKey);
+      if (value.runtimeType is List<dynamic>) {
+        List<dynamic>? values = value as List<dynamic>?;
+        extraHeaders.add('$headerKey : ${jsonEncode(values)}');
+      } else {
+        extraHeaders.add('$headerKey : $value');
+      }
+    });
+    extraHeaders.add('$headerKeysKey : ${jsonEncode(keysArr)}');
 
     _request =
         InitialOutgoingInviteRequest(target, _ua, requestParams, extraHeaders);
@@ -509,24 +539,6 @@ class RTCSession extends EventManager implements Owner {
     comdeskExtraHeaders['GROUP_NAME'] = '';
     comdeskExtraHeaders['GROUP_NUMBER'] = '';
     comdeskExtraHeaders['QUEUE_LOCAL_CHANEL'] = '';
-
-    // BASIC_HEADER_KEYS.forEach((String key) {
-    //   dynamic value = request.getHeader(key);
-    //   if (value != null) {
-    //     comdeskExtraHeaders[key] = value;
-    //   }
-    // });
-
-    // String? eventNumber = request.getHeader('EVENT_NUMBER') as String?;
-    // if (eventNumber != null &&
-    //     eventNumber == WEBHOOK_EVENT.VFORM_USER_CALL_START.value) {
-    //   VFORM_USER_CALL_HEADER_KEYS.forEach((String key) {
-    //     dynamic value = request.getHeader(key);
-    //     if (value != null) {
-    //       comdeskExtraHeaders[key] = value;
-    //     }
-    //   });
-    // }
 
     final String headerKeysKey = '${EXTRA_HEADERS_HEAD}keys';
     List<String> keysArr = <String>[];

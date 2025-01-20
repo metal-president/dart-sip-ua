@@ -89,6 +89,8 @@ class SIPUAHelper extends EventManager {
 
   Future<bool> call(
     String target, {
+    required String sequenceId,
+    required String userKey,
     bool voiceOnly = false,
     MediaStream? mediaStream,
     List<String>? headers,
@@ -106,7 +108,7 @@ class SIPUAHelper extends EventManager {
       List<dynamic> extHeaders = options['extraHeaders'] as List<dynamic>;
       extHeaders.addAll(headers ?? <String>[]);
       options['extraHeaders'] = extHeaders;
-      _ua!.call(target, options);
+      _ua!.call(target, sequenceId, userKey, options);
       return true;
     } else {
       logger.e('Not connected, you will need to register.',
