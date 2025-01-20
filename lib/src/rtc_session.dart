@@ -277,7 +277,7 @@ class RTCSession extends EventManager implements Owner {
     return <String, dynamic>{'local': _localHold, 'remote': _remoteHold};
   }
 
-  void connect(dynamic target, dynamic sequenceId, dynamic userKey,
+  void connect(dynamic target, dynamic sequenceId,
       [Map<String, dynamic>? options,
       InitSuccessCallback? initCallback]) async {
     logger.d('connect()');
@@ -287,7 +287,6 @@ class RTCSession extends EventManager implements Owner {
     EventManager eventHandlers = options['eventHandlers'] ?? EventManager();
     List<dynamic> extraHeaders = utils.cloneArray(options['extraHeaders']);
     extraHeaders.add('SEQUENCE_ID: $sequenceId');
-    extraHeaders.add('USER_KEY: $userKey');
 
     Map<String, dynamic> mediaConstraints = options['mediaConstraints'] ??
         <String, dynamic>{'audio': true, 'video': true};

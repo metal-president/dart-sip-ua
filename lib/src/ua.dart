@@ -244,17 +244,16 @@ class UA extends EventManager {
    *
    * -param {String} target
    * -param {String} sequenceId
-   * -param {String} userKey
    * -param {Object} [options]
    *
    * -throws {TypeError}
    *
    */
-  RTCSession call(String target, String sequenceId, String userKey,
-      Map<String, dynamic> options) {
+  RTCSession call(
+      String target, String sequenceId, Map<String, dynamic> options) {
     logger.d('call()');
     RTCSession session = RTCSession(this);
-    session.connect(target, sequenceId, userKey, options);
+    session.connect(target, sequenceId, options);
     return session;
   }
 
