@@ -89,6 +89,7 @@ class SIPUAHelper extends EventManager {
 
   Future<bool> call(
     String target, {
+    required String sequenceId,
     bool voiceOnly = false,
     MediaStream? mediaStream,
     List<String>? headers,
@@ -96,6 +97,8 @@ class SIPUAHelper extends EventManager {
   }) async {
     if (_ua != null && _ua!.isConnected()) {
       Map<String, dynamic> options = buildCallOptions(voiceOnly);
+      // for Comdesk
+      options['SEQUENCE_ID'] = sequenceId;
 
       if (customOptions != null) {
         options = MapHelper.merge(options, customOptions);
