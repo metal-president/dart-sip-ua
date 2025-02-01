@@ -72,6 +72,9 @@ extension WEBHOOK_EVENT_EXT on WEBHOOK_EVENT {
   }
 }
 
+// for Comdesk
+const bool isComdesk = true;
+
 class C {
   // RTCSession states.
   static const int STATUS_NULL = 0;
@@ -157,6 +160,9 @@ class RTCSession extends EventManager implements Owner {
   // Default rtcOfferConstraints and rtcAnswerConstrainsts (passed in connect() or answer()).
   Map<String, dynamic>? _rtcOfferConstraints;
   Map<String, dynamic>? _rtcAnswerConstraints;
+
+  // for Comdesk
+  Map<String, dynamic>? _mediaConstraints;
 
   // Local MediaStream.
   MediaStream? _localMediaStream;
@@ -1295,12 +1301,14 @@ class RTCSession extends EventManager implements Owner {
       _sendUpdate(<String, dynamic>{
         'sdpOffer': true,
         'eventHandlers': handlers,
-        'extraHeaders': options['extraHeaders']
+        'extraHeaders': options['extraHeaders'],
+        'mediaConstraints': _mediaConstraints,
       });
     } else {
       _sendReinvite(<String, dynamic>{
         'eventHandlers': handlers,
-        'extraHeaders': options['extraHeaders']
+        'extraHeaders': options['extraHeaders'],
+        'mediaConstraints': _mediaConstraints,
       });
     }
 
@@ -1345,12 +1353,14 @@ class RTCSession extends EventManager implements Owner {
       _sendUpdate(<String, dynamic>{
         'sdpOffer': true,
         'eventHandlers': handlers,
-        'extraHeaders': options['extraHeaders']
+        'extraHeaders': options['extraHeaders'],
+        'mediaConstraints': _mediaConstraints,
       });
     } else {
       _sendReinvite(<String, dynamic>{
         'eventHandlers': handlers,
-        'extraHeaders': options['extraHeaders']
+        'extraHeaders': options['extraHeaders'],
+        'mediaConstraints': _mediaConstraints,
       });
     }
 
@@ -1727,6 +1737,7 @@ class RTCSession extends EventManager implements Owner {
       await _localMediaStream!.dispose();
       _localMediaStream = null;
     }
+    _mediaConstraints = null;
 
     // Terminate signaling.
 
@@ -2532,6 +2543,9 @@ class RTCSession extends EventManager implements Owner {
       sdpSemantics = pcConfig['sdpSemantics'];
     }
 
+    // for Comdesk
+    _mediaConstraints = mediaConstraints;
+
     // This Promise is resolved within the next iteration, so the app has now
     // a chance to set events such as 'peerconnection' and 'connecting'.
     MediaStream? stream;
@@ -2806,46 +2820,82 @@ class RTCSession extends EventManager implements Owner {
 
     bool hasVideo = (options['mediaConstraints']?['video'] ?? false) != false;
 
-    try {
-      MediaStream localStream =
-          await navigator.mediaDevices.getUserMedia(mediaConstraints);
-      _localMediaStreamLocallyGenerated = true;
-      _localMediaStream = localStream;
-
-      emit(
-          EventStream(session: this, originator: 'local', stream: localStream));
-
-      switch (sdpSemantics) {
-        case 'unified-plan':
-          localStream.getTracks().forEach((MediaStreamTrack track) {
-            if (track.kind == 'video' && hasVideo) {
-              _connection!.addTrack(track, localStream);
-            }
-          });
-          break;
-        case 'plan-b':
-          _connection!.addStream(localStream);
-          break;
-        default:
-          logger.e('Unkown sdp semantics $sdpSemantics');
-          throw Exceptions.NotReadyError('Unkown sdp semantics $sdpSemantics');
+    if (isComdesk) {
+      MediaStream? mediaStream = _localMediaStream;
+      // This Promise is resolved within the next iteration, so the app has now
+      // a chance to set events such as 'peerconnection' and 'connecting'.
+      MediaStream? stream;
+      // A stream is given, var the app set events such as 'peerconnection' and 'connecting'.
+      if (mediaStream != null) {
+        stream = mediaStream;
+        emit(EventStream(session: this, originator: 'local', stream: stream));
+      } // Request for user media access.
+      else if (mediaConstraints['audio'] != null ||
+          mediaConstraints['video'] != null) {
+        _localMediaStreamLocallyGenerated = true;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
+          emit(EventStream(session: this, originator: 'local', stream: stream));
+        } catch (error) {
+          if (_status == C.STATUS_TERMINATED) {
+            throw Exceptions.InvalidStateError('terminated');
+          }
+          _failed(
+              'local',
+              null,
+              null,
+              null,
+              500,
+              DartSIP_C.CausesType.USER_DENIED_MEDIA_ACCESS,
+              'User Denied Media Access');
+          logger.e('emit "getusermediafailed" [error:${error.toString()}]');
+          emit(EventGetUserMediaFailed(exception: error));
+          throw error;
+        }
       }
-    } catch (error) {
-      if (_status == C.STATUS_TERMINATED) {
-        throw Exceptions.InvalidStateError('terminated');
+    } else {
+      try {
+        MediaStream localStream =
+            await navigator.mediaDevices.getUserMedia(mediaConstraints);
+        _localMediaStreamLocallyGenerated = true;
+        _localMediaStream = localStream;
+
+        emit(EventStream(
+            session: this, originator: 'local', stream: localStream));
+
+        switch (sdpSemantics) {
+          case 'unified-plan':
+            localStream.getTracks().forEach((MediaStreamTrack track) {
+              if (track.kind == 'video' && hasVideo) {
+                _connection!.addTrack(track, localStream);
+              }
+            });
+            break;
+          case 'plan-b':
+            _connection!.addStream(localStream);
+            break;
+          default:
+            logger.e('Unkown sdp semantics $sdpSemantics');
+            throw Exceptions.NotReadyError(
+                'Unkown sdp semantics $sdpSemantics');
+        }
+      } catch (error) {
+        if (_status == C.STATUS_TERMINATED) {
+          throw Exceptions.InvalidStateError('terminated');
+        }
+        request.reply(480);
+        _failed(
+            'local',
+            null,
+            null,
+            null,
+            480,
+            DartSIP_C.CausesType.USER_DENIED_MEDIA_ACCESS,
+            'User Denied Media Access');
+        logger.e('emit "getusermediafailed" [error:${error.toString()}]');
+        emit(EventGetUserMediaFailed(exception: error));
+        throw Exceptions.InvalidStateError('getUserMedia() failed');
       }
-      request.reply(480);
-      _failed(
-          'local',
-          null,
-          null,
-          null,
-          480,
-          DartSIP_C.CausesType.USER_DENIED_MEDIA_ACCESS,
-          'User Denied Media Access');
-      logger.e('emit "getusermediafailed" [error:${error.toString()}]');
-      emit(EventGetUserMediaFailed(exception: error));
-      throw Exceptions.InvalidStateError('getUserMedia() failed');
     }
 
     bool succeeded = false;
