@@ -382,8 +382,8 @@ class RTCSession extends EventManager implements Owner {
 
     // for Comdesk
     Map<String, dynamic> comdeskExtraHeaders = <String, dynamic>{};
-    comdeskExtraHeaders['CALLER_CHANNEL'] = '';
-    comdeskExtraHeaders['VARIABLES_KEY'] = '';
+    comdeskExtraHeaders['CALLER_CHANNEL'] = options['CALLER_CHANNEL'];
+    comdeskExtraHeaders['VARIABLES_KEY'] = options['VARIABLES_KEY'];
     comdeskExtraHeaders['EVENT_NUMBER'] = options['EVENT_NUMBER'];
     comdeskExtraHeaders['SEQUENCE_ID'] = options['SEQUENCE_ID'];
     comdeskExtraHeaders['CIRCUIT_NUMBER'] = '';
