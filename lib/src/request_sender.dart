@@ -1,3 +1,4 @@
+// Project imports:
 import 'constants.dart';
 import 'data.dart';
 import 'digest_authentication.dart';
@@ -9,7 +10,6 @@ import 'transactions/ack_client.dart';
 import 'transactions/invite_client.dart';
 import 'transactions/non_invite_client.dart';
 import 'transactions/transaction_base.dart';
-import 'ua.dart' as UAC;
 import 'ua.dart';
 
 // Default event handlers.
@@ -25,7 +25,7 @@ class RequestSender {
     _staled = false;
 
     // If ua is in closing process or even closed just allow sending Bye and ACK.
-    if (ua.status == UAC.C.STATUS_USER_CLOSED &&
+    if (ua.status == UAStatus.userClosed &&
         (_method != SipMethod.BYE || _method != SipMethod.ACK)) {
       _eventHandlers.emit(EventOnTransportError());
     }

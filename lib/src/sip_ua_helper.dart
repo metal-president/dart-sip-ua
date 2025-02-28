@@ -1,25 +1,33 @@
+// Dart imports:
 import 'dart:async';
 
+// Package imports:
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:logger/logger.dart';
 import 'package:sdp_transform/sdp_transform.dart' as sdp_transform;
-import 'package:sip_ua/sip_ua.dart';
-import 'package:sip_ua/src/event_manager/internal_events.dart';
-import 'package:sip_ua/src/map_helper.dart';
-import 'package:sip_ua/src/transports/socket_interface.dart';
-import 'package:sip_ua/src/transports/tcp_socket.dart';
+
+// Project imports:
+import 'package:sip_ua/src/uri.dart';
 import 'config.dart';
 import 'constants.dart' as DartSIP_C;
+import 'enums.dart';
 import 'event_manager/event_manager.dart';
+import 'event_manager/internal_events.dart';
 import 'event_manager/subscriber_events.dart';
 import 'logger.dart';
+import 'map_helper.dart';
 import 'message.dart';
+import 'options.dart';
 import 'rtc_session.dart';
 import 'rtc_session/refer_subscriber.dart';
 import 'stack_trace_nj.dart';
 import 'subscriber.dart';
+import 'transport_type.dart';
+import 'transports/socket_interface.dart';
+import 'transports/tcp_socket.dart';
 import 'transports/web_socket.dart';
 import 'ua.dart';
+import 'utils.dart' as Utils;
 
 class SIPUAHelper extends EventManager {
   SIPUAHelper({Logger? customLogger}) {
@@ -80,12 +88,13 @@ class SIPUAHelper extends EventManager {
     _ua!.register();
   }
 
-  void unregister([bool all = true]) {
+  Future<bool> unregister([bool all = true]) async {
     if (_ua != null) {
       assert(registered, 'ERROR: you must call register first.');
-      _ua!.unregister(all: all);
+      return _ua!.unregister(all: all);
     } else {
       logger.e('ERROR: unregister called, you must call start first.');
+      return false;
     }
   }
 
@@ -162,7 +171,7 @@ class SIPUAHelper extends EventManager {
     required bool voiceOnly,
     Map<String, dynamic>? options,
     bool useUpdate = false,
-    Function(IncomingMessage)? done,
+    Function(IncomingMessage?)? done,
   }) async {
     Map<String, dynamic> finalOptions = options ?? buildCallOptions(voiceOnly);
     call.renegotiate(options: finalOptions, useUpdate: useUpdate, done: done);
@@ -197,7 +206,8 @@ class SIPUAHelper extends EventManager {
     }
 
     _settings.transportType = uaSettings.transportType!;
-    _settings.uri = uaSettings.uri;
+    _settings.uri =
+        uaSettings.uri != null ? Utils.normalizeTarget(uaSettings.uri!) : null;
     _settings.sip_message_delay = uaSettings.sip_message_delay;
     _settings.realm = uaSettings.realm;
     _settings.password = uaSettings.password;
@@ -217,8 +227,9 @@ class SIPUAHelper extends EventManager {
         uaSettings.sessionTimersRefreshMethod;
     _settings.instance_id = uaSettings.instanceId;
     _settings.registrar_server = uaSettings.registrarServer;
-// for Comdesk
-    // _settings.contact_uri = uaSettings.contact_uri;
+    _settings.contact_uri = uaSettings.contact_uri != null
+        ? Utils.normalizeTarget(uaSettings.contact_uri!)
+        : null;
     _settings.connection_recovery_max_interval =
         uaSettings.connectionRecoveryMaxInterval;
     _settings.connection_recovery_min_interval =
@@ -272,7 +283,7 @@ class SIPUAHelper extends EventManager {
       _ua!.on(EventNewRTCSession(), (EventNewRTCSession event) {
         logger.d('newRTCSession => $event');
         RTCSession session = event.session!;
-        if (session.direction == 'incoming') {
+        if (session.direction == Direction.incoming) {
           // Set event handlers.
           session.addAllEventHandlers(
               buildCallOptions()['eventHandlers'] as EventManager);
@@ -290,7 +301,7 @@ class SIPUAHelper extends EventManager {
       _ua!.on(EventNewMessage(), (EventNewMessage event) {
         logger.d('newMessage => $event');
         //Only notify incoming message to listener
-        if (event.message!.direction == 'incoming') {
+        if (event.message!.direction == Direction.incoming) {
           SIPMessageRequest message =
               SIPMessageRequest(event.message, event.originator, event.request);
           _notifyNewMessageListeners(message);
@@ -455,6 +466,11 @@ class SIPUAHelper extends EventManager {
     return _ua!.sendMessage(target, body, options, params);
   }
 
+  Options sendOptions(
+      String target, String body, Map<String, dynamic>? params) {
+    return _ua!.sendOptions(target, body, params);
+  }
+
   void subscribe(String target, String event, String contentType) {
     Subscriber s = _ua!.subscribe(target, event, contentType);
 
@@ -616,6 +632,8 @@ class Call {
     } else {
       logger.d("peerConnection is null, can't stop tracks.");
     }
+
+    if (state == CallStateEnum.ENDED) return;
     _session.terminate(options);
   }
 
@@ -642,7 +660,7 @@ class Call {
   void renegotiate({
     required Map<String, dynamic>? options,
     bool useUpdate = false,
-    Function(IncomingMessage)? done,
+    Function(IncomingMessage?)? done,
   }) {
     assert(_session != null, 'ERROR(renegotiate): rtc session is invalid!');
     _session.renegotiate(options: options, useUpdate: useUpdate, done: done);
@@ -699,12 +717,9 @@ class Call {
     return '';
   }
 
-  String get direction {
+  Direction? get direction {
     assert(_session != null, 'ERROR(get direction): rtc session is invalid!');
-    if (_session.direction != null) {
-      return _session.direction!.toUpperCase();
-    }
-    return '';
+    return _session.direction;
   }
 
   bool get remote_has_audio => _peerHasMediaLine('audio');
@@ -751,7 +766,7 @@ class CallState {
       this.refer});
   CallStateEnum state;
   ErrorCause? cause;
-  String? originator;
+  Originator? originator;
   bool? audio;
   bool? video;
   MediaStream? stream;
@@ -787,7 +802,7 @@ class TransportState {
 class SIPMessageRequest {
   SIPMessageRequest(this.message, this.originator, this.request);
   dynamic request;
-  String? originator;
+  Originator? originator;
   Message? message;
 }
 

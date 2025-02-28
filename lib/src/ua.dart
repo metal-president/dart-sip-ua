@@ -1,13 +1,14 @@
+// Dart imports:
 import 'dart:async';
 
-import 'package:sip_ua/src/transport_type.dart';
-import 'package:sip_ua/src/transports/socket_interface.dart';
+// Project imports:
 import 'config.dart' as config;
 import 'config.dart';
 import 'constants.dart' as DartSIP_C;
 import 'constants.dart';
 import 'data.dart';
 import 'dialog.dart';
+import 'enums.dart';
 import 'event_manager/event_manager.dart';
 import 'event_manager/internal_events.dart';
 import 'exceptions.dart' as Exceptions;
@@ -28,21 +29,13 @@ import 'transactions/non_invite_client.dart';
 import 'transactions/non_invite_server.dart';
 import 'transactions/transaction_base.dart';
 import 'transactions/transactions.dart';
-import 'transports/web_socket.dart';
+import 'transports/socket_interface.dart';
 import 'uri.dart';
 import 'utils.dart' as Utils;
 
-class C {
-  // UA status codes.
-  static const int STATUS_INIT = 0;
-  static const int STATUS_READY = 1;
-  static const int STATUS_USER_CLOSED = 2;
-  static const int STATUS_NOT_READY = 3;
+enum UAStatus { init, ready, userClosed, notReady }
 
-  // UA error codes.
-  static const int CONFIGURATION_ERROR = 1;
-  static const int NETWORK_ERROR = 2;
-}
+enum UAError { configuration, network }
 
 // TODO(Perondas): Figure out what this is
 final bool hasRTCPeerConnection = true;
@@ -93,9 +86,9 @@ class UA extends EventManager {
     try {
       _loadConfig(configuration);
     } catch (e) {
-      _status = C.STATUS_NOT_READY;
-      _error = C.CONFIGURATION_ERROR;
-      throw e;
+      _status = UAStatus.notReady;
+      _error = UAError.configuration;
+      rethrow;
     }
 
     // Initialize registrator.
@@ -118,8 +111,8 @@ class UA extends EventManager {
   final Map<String?, RTCSession> _sessions = <String?, RTCSession>{};
   SocketTransport? _socketTransport;
   Contact? _contact;
-  int _status = C.STATUS_INIT;
-  int? _error;
+  UAStatus _status = UAStatus.init;
+  UAError? _error;
   late TransactionBag _transactions;
 
 // Custom UA empty object for high level use.
@@ -128,7 +121,7 @@ class UA extends EventManager {
   Timer? _closeTimer;
   late Registrator _registrator;
 
-  int get status => _status;
+  UAStatus get status => _status;
 
   Contact? get contact => _contact;
 
@@ -154,9 +147,9 @@ class UA extends EventManager {
 
     _transactions = TransactionBag();
 
-    if (_status == C.STATUS_INIT) {
+    if (_status == UAStatus.init) {
       _socketTransport!.connect();
-    } else if (_status == C.STATUS_USER_CLOSED) {
+    } else if (_status == UAStatus.userClosed) {
       logger.d('restarting UA');
 
       // Disconnect.
@@ -167,9 +160,9 @@ class UA extends EventManager {
       }
 
       // Reconnect.
-      _status = C.STATUS_INIT;
+      _status = UAStatus.init;
       _socketTransport!.connect();
-    } else if (_status == C.STATUS_READY) {
+    } else if (_status == UAStatus.ready) {
       logger.d('UA is in READY status, not restarted');
     } else {
       logger.d(
@@ -192,11 +185,11 @@ class UA extends EventManager {
   /**
    * Unregister.
    */
-  void unregister({bool all = false}) {
+  Future<bool> unregister({bool all = false}) {
     logger.d('unregister()');
 
     _dynConfiguration!.register = false;
-    _registrator.unregister(all);
+    return _registrator.unregister(all);
   }
 
   /**
@@ -334,7 +327,7 @@ class UA extends EventManager {
     // Remove dynamic settings.
     _dynConfiguration = null;
 
-    if (_status == C.STATUS_USER_CLOSED) {
+    if (_status == UAStatus.userClosed) {
       logger.d('UA already closed');
 
       return;
@@ -347,7 +340,7 @@ class UA extends EventManager {
     int num_sessions = _sessions.length;
 
     // Run  _terminate_ on every Session.
-    _sessions.forEach((String? key, _) {
+    _sessions.keys.toList().forEach((String? key) {
       if (_sessions.containsKey(key)) {
         logger.d('closing session $key');
         try {
@@ -383,7 +376,7 @@ class UA extends EventManager {
       } catch (error) {}
     }
 
-    _status = C.STATUS_USER_CLOSED;
+    _status = UAStatus.userClosed;
 
     int num_transactions = _transactions.countTransactions();
     if (num_transactions == 0 && num_sessions == 0) {
@@ -522,7 +515,7 @@ class UA extends EventManager {
   /**
    *  Message
    */
-  void newMessage(Message message, String originator, dynamic request) {
+  void newMessage(Message message, Originator originator, dynamic request) {
     if (_stopping) {
       return;
     }
@@ -534,7 +527,7 @@ class UA extends EventManager {
   /**
    *  Options
    */
-  void newOptions(Options message, String originator, dynamic request) {
+  void newOptions(Options message, Originator originator, dynamic request) {
     if (_stopping) {
       return;
     }
@@ -568,7 +561,7 @@ class UA extends EventManager {
    * RTCSession
    */
   void newRTCSession(
-      {required RTCSession session, String? originator, dynamic request}) {
+      {required RTCSession session, Originator? originator, dynamic request}) {
     _sessions[session.id] = session;
     emit(EventNewRTCSession(
         session: session, originator: originator, request: request));
@@ -625,7 +618,7 @@ class UA extends EventManager {
     DartSIP_C.SipMethod? method = request.method;
 
     // Check that request URI points to us.
-    if (request.ruri!.user != _configuration.uri.user &&
+    if (request.ruri!.user != _configuration.uri!.user &&
         request.ruri!.user != _contact!.uri!.user) {
       logger.d('Request-URI does not point to us');
       if (request.method != SipMethod.ACK) {
@@ -842,7 +835,7 @@ class UA extends EventManager {
     try {
       config.load(configuration, _configuration);
     } catch (e) {
-      throw e;
+      rethrow;
     }
 
     // Post Configuration Process.
@@ -860,7 +853,7 @@ class UA extends EventManager {
     _configuration.jssip_id = Utils.createRandomToken(5);
 
     // String containing _configuration.uri without scheme and user.
-    URI hostport_params = _configuration.uri.clone();
+    URI hostport_params = _configuration.uri!.clone();
 
     _configuration.terminateOnAudioMediaPortZero =
         configuration.terminateOnAudioMediaPortZero;
@@ -895,12 +888,12 @@ class UA extends EventManager {
 
     // Check whether authorization_user is explicitly defined.
     // Take '_configuration.uri.user' value if not.
-    _configuration.authorization_user ??= _configuration.uri.user;
+    _configuration.authorization_user ??= _configuration.uri!.user;
 
     // If no 'registrar_server' is set use the 'uri' value without user portion and
     // without URI params/headers.
     if (_configuration.registrar_server == null) {
-      URI registrar_server = _configuration.uri.clone();
+      URI registrar_server = _configuration.uri!.clone();
       registrar_server.user = null;
       registrar_server.clearParams();
       registrar_server.clearHeaders();
@@ -920,7 +913,7 @@ class UA extends EventManager {
 
     // Via Host.
     if (_configuration.contact_uri != null) {
-      _configuration.via_host = _configuration.contact_uri.host;
+      _configuration.via_host = _configuration.contact_uri!.host;
     }
     // Contact URI.
     else {
@@ -948,10 +941,10 @@ class UA extends EventManager {
 // Transport connected event.
   void onTransportConnect(SocketTransport transport) {
     logger.d('Transport connected');
-    if (_status == C.STATUS_USER_CLOSED) {
+    if (_status == UAStatus.userClosed) {
       return;
     }
-    _status = C.STATUS_READY;
+    _status = UAStatus.ready;
     _error = null;
 
     emit(EventSocketConnected(socket: transport.socket));
@@ -973,9 +966,9 @@ class UA extends EventManager {
     // Call registrator _onTransportClosed_.
     _registrator.onTransportClosed();
 
-    if (_status != C.STATUS_USER_CLOSED) {
-      _status = C.STATUS_NOT_READY;
-      _error = C.NETWORK_ERROR;
+    if (_status != UAStatus.userClosed) {
+      _status = UAStatus.notReady;
+      _error = UAError.network;
     }
   }
 
@@ -987,7 +980,7 @@ class UA extends EventManager {
       return;
     }
 
-    if (_status == C.STATUS_USER_CLOSED && message is IncomingRequest) {
+    if (_status == UAStatus.userClosed && message is IncomingRequest) {
       return;
     }
 

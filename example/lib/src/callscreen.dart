@@ -34,7 +34,7 @@ class _MyCallScreenWidget extends State<CallScreenWidget>
   bool _speakerOn = false;
   bool _hold = false;
   bool _mirror = true;
-  String? _holdOriginator;
+  Originator? _holdOriginator;
   bool _callConfirmed = false;
   CallStateEnum _state = CallStateEnum.NONE;
 
@@ -47,7 +47,7 @@ class _MyCallScreenWidget extends State<CallScreenWidget>
 
   String? get remoteIdentity => call!.remote_identity;
 
-  String get direction => call!.direction;
+  Direction? get direction => call!.direction;
 
   Call? get call => widget._call;
 
@@ -177,16 +177,19 @@ class _MyCallScreenWidget extends State<CallScreenWidget>
 
   void _handleStreams(CallState event) async {
     MediaStream? stream = event.stream;
-    if (event.originator == 'local') {
+    if (event.originator == Originator.local) {
       if (_localRenderer != null) {
         _localRenderer!.srcObject = stream;
       }
-      if (!kIsWeb && !WebRTC.platformIsDesktop) {
+
+      if (!kIsWeb &&
+          !WebRTC.platformIsDesktop &&
+          event.stream?.getAudioTracks().isNotEmpty == true) {
         event.stream?.getAudioTracks().first.enableSpeakerphone(false);
       }
       _localStream = stream;
     }
-    if (event.originator == 'remote') {
+    if (event.originator == Originator.remote) {
       if (_remoteRenderer != null) {
         _remoteRenderer!.srcObject = stream;
       }
@@ -227,6 +230,7 @@ class _MyCallScreenWidget extends State<CallScreenWidget>
                 'minFrameRate': '30',
               },
               'facingMode': 'user',
+              'optional': <dynamic>[],
             }
           : false
     };
@@ -239,6 +243,9 @@ class _MyCallScreenWidget extends State<CallScreenWidget>
           await navigator.mediaDevices.getUserMedia(mediaConstraints);
       mediaStream.addTrack(userStream.getAudioTracks()[0], addToNative: true);
     } else {
+      if (!remoteHasVideo) {
+        mediaConstraints['video'] = false;
+      }
       mediaStream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
     }
 
@@ -334,10 +341,14 @@ class _MyCallScreenWidget extends State<CallScreenWidget>
         call!.voiceOnly = false;
       });
       helper!.renegotiate(
-          call: call!, voiceOnly: false, done: (incomingMessage) {});
+          call: call!,
+          voiceOnly: false,
+          done: (IncomingMessage? incomingMessage) {});
     } else {
       helper!.renegotiate(
-          call: call!, voiceOnly: true, done: (incomingMessage) {});
+          call: call!,
+          voiceOnly: true,
+          done: (IncomingMessage? incomingMessage) {});
     }
   }
 
@@ -412,7 +423,7 @@ class _MyCallScreenWidget extends State<CallScreenWidget>
     switch (_state) {
       case CallStateEnum.NONE:
       case CallStateEnum.CONNECTING:
-        if (direction == 'INCOMING') {
+        if (direction == Direction.incoming) {
           basicActions.add(ActionButton(
             title: "Accept",
             fillColor: Colors.green,
@@ -597,7 +608,7 @@ class _MyCallScreenWidget extends State<CallScreenWidget>
                       child: Text(
                         (voiceOnly ? 'VOICE CALL' : 'VIDEO CALL') +
                             (_hold
-                                ? ' PAUSED BY ${_holdOriginator!.toUpperCase()}'
+                                ? ' PAUSED BY ${_holdOriginator!.name}'
                                 : ''),
                         style: TextStyle(fontSize: 24, color: textColor),
                       ),
@@ -644,7 +655,7 @@ class _MyCallScreenWidget extends State<CallScreenWidget>
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        title: Text('[$direction] ${EnumHelper.getName(_state)}'),
+        title: Text('[$direction] ${_state.name}'),
       ),
       body: _buildContent(),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,

@@ -1,7 +1,8 @@
+// Package imports:
 import 'package:intl/intl.dart';
 import 'package:logger/logger.dart';
 
-import 'enum_helper.dart';
+// Project imports:
 import 'stack_trace_nj.dart';
 
 Logger logger = Log();
@@ -41,8 +42,7 @@ class MyLogPrinter extends LogPrinter {
 
   @override
   List<String> log(LogEvent event) {
-    if (EnumHelper.getIndexOf(Level.values, Log._loggingLevel) >
-        EnumHelper.getIndexOf(Level.values, event.level)) {
+    if (Log._loggingLevel.index > event.level.index) {
       // don't log events where the log level is set higher
       return <String>[];
     }

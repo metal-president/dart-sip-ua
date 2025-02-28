@@ -1,7 +1,8 @@
-import 'package:sip_ua/sip_ua.dart';
-import 'package:sip_ua/src/transports/socket_interface.dart';
+// Project imports:
+import '../../sip_ua.dart';
 import '../grammar.dart';
 import '../logger.dart';
+import 'socket_interface.dart';
 
 import 'websocket_dart_impl.dart'
     if (dart.library.js) 'websocket_web_impl.dart';
@@ -142,7 +143,7 @@ class SIPUAWebSocket extends SIPUASocketInterface {
       return true;
     } catch (error) {
       logger.e('send() | error sending message: $error');
-      throw error;
+      rethrow;
     }
   }
 
@@ -175,7 +176,7 @@ class SIPUAWebSocket extends SIPUASocketInterface {
   void _onMessage(dynamic data) {
     logger.d('Received WebSocket message');
     if (data != null) {
-      if (data.toString().trim().length > 0) {
+      if (data.toString().trim().isNotEmpty) {
         ondata!(data);
       } else {
         logger.d('Received and ignored empty packet');

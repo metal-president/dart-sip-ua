@@ -1,13 +1,12 @@
-import 'package:sip_ua/sip_ua.dart';
-import 'package:sip_ua/src/transports/socket_interface.dart';
-import 'package:sip_ua/src/transports/tcp_socket.dart';
+// Project imports:
+import '../sip_ua.dart';
 import 'constants.dart' as DartSIP_C;
 import 'constants.dart';
 import 'exceptions.dart' as Exceptions;
 import 'grammar.dart';
 import 'logger.dart';
+import 'transports/socket_interface.dart';
 import 'transports/web_socket.dart';
-import 'uri.dart';
 import 'utils.dart' as Utils;
 
 // Default settings.
@@ -20,8 +19,8 @@ class Settings {
 
   // SIP account.
   String? display_name;
-  dynamic uri;
-  dynamic contact_uri;
+  URI? uri;
+  URI? contact_uri;
   String user_agent = DartSIP_C.USER_AGENT;
 
   // SIP instance id (GRUU).
@@ -86,7 +85,7 @@ class Checks {
        *  List of Objects and Socket: [{socket: socket1}, socket2]
        */
       List<SIPUASocketInterface> copy = <SIPUASocketInterface>[];
-      if (sockets is List && sockets!.length > 0) {
+      if (sockets is List && sockets!.isNotEmpty) {
         for (SIPUASocketInterface socket in sockets) {
           copy.add(socket);
         }
@@ -97,21 +96,14 @@ class Checks {
       dst!.sockets = copy;
     },
     'uri': (Settings src, Settings? dst) {
-      dynamic uri = src.uri;
       if (src.uri == null && dst!.uri == null) {
         throw Exceptions.ConfigurationError('uri', null);
       }
-      if (!uri.contains(RegExp(r'^sip:', caseSensitive: false))) {
-        uri = '${DartSIP_C.SIP}:$uri';
+      URI uri = src.uri!;
+      if (!uri.toString().contains(RegExp(r'^sip:', caseSensitive: false))) {
+        uri.scheme = DartSIP_C.SIP;
       }
-      dynamic parsed = URI.parse(uri);
-      if (parsed == null) {
-        throw Exceptions.ConfigurationError('uri', parsed);
-      } else if (parsed.user == null) {
-        throw Exceptions.ConfigurationError('uri', parsed);
-      } else {
-        dst!.uri = parsed;
-      }
+      dst!.uri = uri;
     },
     'transport_type': (Settings src, Settings? dst) {
       dynamic transportType = src.transportType;
@@ -287,6 +279,6 @@ void load(Settings src, Settings? dst) {
     });
   } catch (e) {
     logger.e('Failed to load config: ${e.toString()}');
-    throw e;
+    rethrow;
   }
 }

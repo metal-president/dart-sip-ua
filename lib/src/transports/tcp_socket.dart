@@ -1,7 +1,8 @@
-import 'package:sip_ua/sip_ua.dart';
-import 'package:sip_ua/src/transports/socket_interface.dart';
-import 'package:sip_ua/src/transports/tcp_socket_impl.dart';
+// Project imports:
+import '../../sip_ua.dart';
 import '../logger.dart';
+import 'socket_interface.dart';
+import 'tcp_socket_impl.dart';
 
 class SIPUATcpSocket extends SIPUASocketInterface {
   SIPUATcpSocket(String host, String port,
@@ -140,7 +141,7 @@ class SIPUATcpSocket extends SIPUASocketInterface {
       return true;
     } catch (error) {
       logger.e('send() | error sending message: $error');
-      throw error;
+      rethrow;
     }
   }
 
@@ -166,7 +167,7 @@ class SIPUATcpSocket extends SIPUASocketInterface {
   void _onMessage(dynamic data) {
     logger.d('Received TcpSocket data');
     if (data != null) {
-      if (data.toString().trim().length > 0) {
+      if (data.toString().trim().isNotEmpty) {
         ondata!(data);
       } else {
         logger.d('Received and ignored empty packet');
@@ -179,7 +180,7 @@ class SIPUATcpSocket extends SIPUASocketInterface {
 
   @override
   String? get url {
-    if (_host == null || _port == null) { 
+    if (_host == null || _port == null) {
       return null;
     }
     return '$_host:$_port';

@@ -1,8 +1,10 @@
+// Dart imports:
 import 'dart:convert' show utf8;
 
+// Package imports:
 import 'package:sdp_transform/sdp_transform.dart' as sdp_transform;
 
-import 'package:sip_ua/src/transactions/transaction_base.dart';
+// Project imports:
 import 'constants.dart' as DartSIP_C;
 import 'constants.dart';
 import 'data.dart';
@@ -11,6 +13,7 @@ import 'grammar.dart';
 import 'logger.dart';
 import 'name_addr_header.dart';
 import 'socket_transport.dart';
+import 'transactions/transaction_base.dart';
 import 'ua.dart';
 import 'uri.dart';
 import 'utils.dart' as utils;

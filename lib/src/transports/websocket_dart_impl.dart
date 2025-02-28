@@ -1,8 +1,10 @@
+// Dart imports:
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
+// Project imports:
 import 'package:sip_ua/src/sip_ua_helper.dart';
 import '../logger.dart';
 
@@ -118,7 +120,7 @@ class SIPUAWebSocketImpl {
       return webSocket;
     } catch (e) {
       logger.e('error $e');
-      throw e;
+      rethrow;
     }
   }
 }
