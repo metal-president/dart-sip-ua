@@ -578,11 +578,13 @@ class UA extends EventManager {
    * Registered
    */
   void registered({required dynamic response}) {
+    dynamic contact = response.headers?['Contact'][0]['raw'] as String?;
     emit(EventRegistered(
         cause: ErrorCause(
             cause: 'registered',
             status_code: response.status_code,
-            reason_phrase: response.reason_phrase)));
+            reason_phrase: response.reason_phrase),
+        contact: contact));
   }
 
   /**
