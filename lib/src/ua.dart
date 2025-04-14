@@ -114,6 +114,8 @@ class UA extends EventManager {
   UAStatus _status = UAStatus.init;
   UAError? _error;
   late TransactionBag _transactions;
+  // for Comdesk
+  String? _registeredContact;
 
 // Custom UA empty object for high level use.
   final Map<String, dynamic> _data = <String, dynamic>{};
@@ -130,6 +132,9 @@ class UA extends EventManager {
   SocketTransport? get socketTransport => _socketTransport;
 
   TransactionBag get transactions => _transactions;
+
+  // for Comdesk
+  String? get registeredContact => _registeredContact;
 
   // Flag that indicates whether UA is currently stopping
   bool _stopping = false;
@@ -579,12 +584,12 @@ class UA extends EventManager {
    */
   void registered({required dynamic response}) {
     dynamic contact = response.headers?['Contact'][0]['raw'] as String?;
+    _registeredContact = contact;
     emit(EventRegistered(
         cause: ErrorCause(
             cause: 'registered',
             status_code: response.status_code,
-            reason_phrase: response.reason_phrase),
-        contact: contact));
+            reason_phrase: response.reason_phrase)));
   }
 
   /**
@@ -927,6 +932,8 @@ class UA extends EventManager {
           <dynamic, dynamic>{'transport': transport});
     }
     _contact = Contact(_configuration.contact_uri);
+    // for Comdesk
+    _registeredContact = null;
     return;
   }
 

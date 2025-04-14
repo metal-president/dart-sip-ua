@@ -41,8 +41,6 @@ class SIPUAHelper extends EventManager {
   Settings _settings = Settings();
   UaSettings? _uaSettings;
   final Map<String?, Call> _calls = <String?, Call>{};
-  // for Comdesk
-  String? _contact;
 
   RegistrationState _registerState =
       RegistrationState(state: RegistrationStateEnum.NONE);
@@ -186,9 +184,6 @@ class SIPUAHelper extends EventManager {
       _ua!.stop();
     }
 
-    // for Comdesk
-    _contact = null;
-
     _uaSettings = uaSettings;
 
     // Reset settings
@@ -266,9 +261,6 @@ class SIPUAHelper extends EventManager {
 
       _ua!.on(EventRegistered(), (EventRegistered event) {
         logger.d('registered => ${event.cause}');
-        // for Comdesk
-        _contact = event.contact;
-
         _registerState = RegistrationState(
             state: RegistrationStateEnum.REGISTERED, cause: event.cause);
         _notifyRegistrationStateListeners(_registerState);
