@@ -433,7 +433,7 @@ class RTCSession extends EventManager implements Owner {
 
   // for Comdesk
   void connectBridge(dynamic target, dynamic sequenceId, dynamic callerChannel,
-      dynamic variablesKey,
+      dynamic variablesKey, dynamic eventNumber,
       [Map<String, dynamic>? options,
       InitSuccessCallback? initCallback]) async {
     logger.d('connectBridge()');
@@ -445,6 +445,7 @@ class RTCSession extends EventManager implements Owner {
     extraHeaders.add('SEQUENCE_ID: $sequenceId');
     extraHeaders.add('CALLER_CHANNEL: $callerChannel');
     extraHeaders.add('VARIABLES_KEY: $variablesKey');
+    extraHeaders.add('EVENT_NUMBER: $eventNumber');
 
     Map<String, dynamic> mediaConstraints = options['mediaConstraints'] ??
         <String, dynamic>{'audio': true, 'video': true};
@@ -539,7 +540,7 @@ class RTCSession extends EventManager implements Owner {
     Map<String, dynamic> comdeskExtraHeaders = <String, dynamic>{};
     comdeskExtraHeaders['CALLER_CHANNEL'] = callerChannel;
     comdeskExtraHeaders['VARIABLES_KEY'] = variablesKey;
-    comdeskExtraHeaders['EVENT_NUMBER'] = 101;
+    comdeskExtraHeaders['EVENT_NUMBER'] = eventNumber;
     comdeskExtraHeaders['SEQUENCE_ID'] = sequenceId;
     comdeskExtraHeaders['CIRCUIT_NUMBER'] = '';
     comdeskExtraHeaders['CIRCUIT_TITLE'] = '';

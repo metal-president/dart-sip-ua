@@ -260,17 +260,18 @@ class UA extends EventManager {
    * -param {String} sequenceId
    * -param {String} callerChannel
    * -param {String} variablesKey
+   * -param {String} eventNumber
    * -param {Object} [options]
    *
    * -throws {TypeError}
    *
    */
   RTCSession callBridge(String target, String sequenceId, String callerChannel,
-      String variablesKey, Map<String, dynamic> options) {
+      String variablesKey, String eventNumber, Map<String, dynamic> options) {
     logger.d('callBridge()');
     RTCSession session = RTCSession(this);
     session.connectBridge(
-        target, sequenceId, callerChannel, variablesKey, options);
+        target, sequenceId, callerChannel, variablesKey, eventNumber, options);
     return session;
   }
 

@@ -136,6 +136,7 @@ class SIPUAHelper extends EventManager {
     required String sequenceId,
     required String callerChannel,
     required String variablesKey,
+    required String eventNumber,
     bool voiceOnly = false,
     MediaStream? mediaStream,
     List<String>? headers,
@@ -153,8 +154,8 @@ class SIPUAHelper extends EventManager {
       List<dynamic> extHeaders = options['extraHeaders'] as List<dynamic>;
       extHeaders.addAll(headers ?? <String>[]);
       options['extraHeaders'] = extHeaders;
-      RTCSession session = _ua!
-          .callBridge(target, sequenceId, callerChannel, variablesKey, options);
+      RTCSession session = _ua!.callBridge(target, sequenceId, callerChannel,
+          variablesKey, eventNumber, options);
       return (session != null);
     } else {
       logger.e('Not connected, you will need to register.',
