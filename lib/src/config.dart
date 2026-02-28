@@ -1,4 +1,3 @@
-// Project imports:
 import '../sip_ua.dart';
 import 'constants.dart' as DartSIP_C;
 import 'constants.dart';
@@ -64,6 +63,9 @@ class Settings {
 
   /// ICE Gathering Timeout (in millisecond).
   int ice_gathering_timeout = 500;
+
+  /// Call statistics in the log
+  bool log_call_statistics = false;
 
   bool terminateOnAudioMediaPortZero = false;
 
@@ -256,6 +258,9 @@ class Checks {
     },
     'ice_gathering_timeout': (Settings src, Settings? dst) {
       dst!.ice_gathering_timeout = src.ice_gathering_timeout;
+    },
+    'log_call_statistics': (Settings src, Settings? dst) {
+      dst!.log_call_statistics = src.log_call_statistics;
     }
   };
 }
